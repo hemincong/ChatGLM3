@@ -7,17 +7,17 @@ max_input_length: 256
 max_output_length: 512
 training_args:
   # see `transformers.Seq2SeqTrainingArguments`
-  output_dir: ./output
-  max_steps: 3000
+  output_dir: /root/autodl-tmp/c6bo
+  max_steps: 80000
   # needed to be fit for the dataset
-  learning_rate: 5e-5
+  learning_rate: 4e-5
   # settings for data loading
   per_device_train_batch_size: 4
   dataloader_num_workers: 16
   remove_unused_columns: false
   # settings for saving checkpoints
   save_strategy: steps
-  save_steps: 2000
+  save_steps: 5000
   # settings for logging
   log_level: info
   logging_strategy: steps
@@ -38,9 +38,10 @@ training_args:
   #deepspeed: ds_zero_2.json
   # set to true if train with cpu.
   use_cpu: false
+    #fp16: True
 peft_config:
   peft_type: LORA
   task_type: CAUSAL_LM
-  r: 8
-  lora_alpha: 32
+  r: 16
+  lora_alpha: 64
   lora_dropout: 0.1
