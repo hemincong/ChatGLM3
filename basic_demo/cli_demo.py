@@ -1,21 +1,44 @@
 import os
 import platform
-from transformers import AutoTokenizer, AutoModel
+from typing import Union
+from pathlib import Path
+from peft import AutoPeftModelForCausalLM, PeftModelForCausalLM
+from transformers import AutoTokenizer, AutoModel, PreTrainedModel, AutoModelForCausalLM, PreTrainedTokenizer, PreTrainedTokenizerFast
+
+ModelType = Union[PreTrainedModel, PeftModelForCausalLM]
+TokenizerType = Union[PreTrainedTokenizer, PreTrainedTokenizerFast]
 
 MODEL_PATH = os.environ.get('MODEL_PATH', 'THUDM/chatglm3-6b')
 TOKENIZER_PATH = os.environ.get("TOKENIZER_PATH", MODEL_PATH)
 
-tokenizer = AutoTokenizer.from_pretrained(TOKENIZER_PATH, trust_remote_code=True)
-model = AutoModel.from_pretrained(MODEL_PATH, trust_remote_code=True).eval()
+#tokenizer = AutoTokenizer.from_pretrained(TOKENIZER_PATH, trust_remote_code=True)
+#model = AutoModel.from_pretrained(MODEL_PATH, trust_remote_code=True).eval()
 # add .quantize(bits=4, device="cuda").cuda() before .eval() to use int4 model
 # must use cuda to load int4 model
+def _resolve_path(path: Union[str, Path]) -> Path:
+    return Path(path).expanduser().resolve()
+
+
+def load_model_and_tokenizer(model_dir: Union[str, Path], trust_remote_code: bool = True) -> tuple[ModelType, TokenizerType]:
+    model_dir = _resolve_path(model_dir)
+    if (model_dir / 'adapter_config.json').exists():
+        model = AutoPeftModelForCausalLM.from_pretrained(model_dir, trust_remote_code=trust_remote_code, device_map='auto')
+        tokenizer_dir = model.peft_config['default'].base_model_name_or_path
+    else:
+        model = AutoModelForCausalLM.from_pretrained(model_dir, trust_remote_code=trust_remote_code, device_map='auto')
+        tokenizer_dir = model_dir
+
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_dir, trust_remote_code=trust_remote_code)
+    return model, tokenizer
+
+
+model, tokenizer = load_model_and_tokenizer(MODEL_PATH, trust_remote_code=True)
 
 os_name = platform.system()
 clear_command = 'cls' if os_name == 'Windows' else 'clear'
 stop_stream = False
 
 welcome_prompt = "欢迎使用 ChatGLM3-6B 模型，输入内容即可进行对话，clear 清空对话历史，stop 终止程序"
-
 
 def build_prompt(history):
     prompt = welcome_prompt
